@@ -1,0 +1,1482 @@
+--- a/vortex-ffi/cinclude/vortex.h
++++ b/vortex-ffi/cinclude/vortex.h
+@@ -26,15 +26,15 @@
+ //
+ #ifndef USE_OWN_ARROW
+ struct ArrowSchema {
+-    const char *format;
+-    const char *name;
+-    const char *metadata;
++    const char* format;
++    const char* name;
++    const char* metadata;
+     int64_t flags;
+     int64_t n_children;
+-    struct ArrowSchema **children;
+-    struct ArrowSchema *dictionary;
+-    void (*release)(struct ArrowSchema *);
+-    void *private_data;
++    struct ArrowSchema** children;
++    struct ArrowSchema* dictionary;
++    void (*release)(struct ArrowSchema*);
++    void* private_data;
+ };
+ struct ArrowArray {
+     int64_t length;
+@@ -42,24 +42,25 @@
+     int64_t offset;
+     int64_t n_buffers;
+     int64_t n_children;
+-    const void **buffers;
+-    struct ArrowArray **children;
+-    struct ArrowArray *dictionary;
+-    void (*release)(struct ArrowArray *);
+-    void *private_data;
++    const void** buffers;
++    struct ArrowArray** children;
++    struct ArrowArray* dictionary;
++    void (*release)(struct ArrowArray*);
++    void* private_data;
+ };
+ struct ArrowArrayStream {
+-    int (*get_schema)(struct ArrowArrayStream *, struct ArrowSchema *out);
+-    int (*get_next)(struct ArrowArrayStream *, struct ArrowArray *out);
+-    const char *(*get_last_error)(struct ArrowArrayStream *);
+-    void (*release)(struct ArrowArrayStream *);
+-    void *private_data;
++    int (*get_schema)(struct ArrowArrayStream*, struct ArrowSchema* out);
++    int (*get_next)(struct ArrowArrayStream*, struct ArrowArray* out);
++    const char* (*get_last_error)(struct ArrowArrayStream*);
++    void (*release)(struct ArrowArrayStream*);
++    void* private_data;
+ };
+ typedef struct ArrowSchema FFI_ArrowSchema;
+ typedef struct ArrowArray FFI_ArrowArray;
+ typedef struct ArrowArrayStream FFI_ArrowArrayStream;
+ #endif
+ 
++
+ #include <stdarg.h>
+ #include <stdbool.h>
+ #include <stddef.h>
+@@ -70,180 +71,180 @@
+  * The variant tag for a Vortex data type.
+  */
+ typedef enum {
+-    /**
+-     * Null type.
+-     */
+-    DTYPE_NULL = 0,
+-    /**
+-     * Boolean type.
+-     */
+-    DTYPE_BOOL = 1,
+-    /**
+-     * Primitive types (e.g., u8, i16, f32, etc.).
+-     */
+-    DTYPE_PRIMITIVE = 2,
+-    /**
+-     * Variable-length UTF-8 string type.
+-     */
+-    DTYPE_UTF8 = 3,
+-    /**
+-     * Variable-length binary data type.
+-     */
+-    DTYPE_BINARY = 4,
+-    /**
+-     * Nested struct type.
+-     */
+-    DTYPE_STRUCT = 5,
+-    /**
+-     * Nested list type.
+-     */
+-    DTYPE_LIST = 6,
+-    /**
+-     * User-defined extension type.
+-     */
+-    DTYPE_EXTENSION = 7,
+-    /**
+-     * Decimal type with fixed precision and scale.
+-     */
+-    DTYPE_DECIMAL = 8,
+-    /**
+-     * Nested fixed-size list type.
+-     */
+-    DTYPE_FIXED_SIZE_LIST = 9,
++  /**
++   * Null type.
++   */
++  DTYPE_NULL = 0,
++  /**
++   * Boolean type.
++   */
++  DTYPE_BOOL = 1,
++  /**
++   * Primitive types (e.g., u8, i16, f32, etc.).
++   */
++  DTYPE_PRIMITIVE = 2,
++  /**
++   * Variable-length UTF-8 string type.
++   */
++  DTYPE_UTF8 = 3,
++  /**
++   * Variable-length binary data type.
++   */
++  DTYPE_BINARY = 4,
++  /**
++   * Nested struct type.
++   */
++  DTYPE_STRUCT = 5,
++  /**
++   * Nested list type.
++   */
++  DTYPE_LIST = 6,
++  /**
++   * User-defined extension type.
++   */
++  DTYPE_EXTENSION = 7,
++  /**
++   * Decimal type with fixed precision and scale.
++   */
++  DTYPE_DECIMAL = 8,
++  /**
++   * Nested fixed-size list type.
++   */
++  DTYPE_FIXED_SIZE_LIST = 9,
+ } vx_dtype_variant;
+ 
+ /**
+  * Variant enum for Vortex primitive types.
+  */
+ typedef enum {
+-    /**
+-     * Unsigned 8-bit integer
+-     */
+-    PTYPE_U8 = 0,
+-    /**
+-     * Unsigned 16-bit integer
+-     */
+-    PTYPE_U16 = 1,
+-    /**
+-     * Unsigned 32-bit integer
+-     */
+-    PTYPE_U32 = 2,
+-    /**
+-     * Unsigned 64-bit integer
+-     */
+-    PTYPE_U64 = 3,
+-    /**
+-     * Signed 8-bit integer
+-     */
+-    PTYPE_I8 = 4,
+-    /**
+-     * Signed 16-bit integer
+-     */
+-    PTYPE_I16 = 5,
+-    /**
+-     * Signed 32-bit integer
+-     */
+-    PTYPE_I32 = 6,
+-    /**
+-     * Signed 64-bit integer
+-     */
+-    PTYPE_I64 = 7,
+-    /**
+-     * 16-bit floating point number
+-     */
+-    PTYPE_F16 = 8,
+-    /**
+-     * 32-bit floating point number
+-     */
+-    PTYPE_F32 = 9,
+-    /**
+-     * 64-bit floating point number
+-     */
+-    PTYPE_F64 = 10,
++  /**
++   * Unsigned 8-bit integer
++   */
++  PTYPE_U8 = 0,
++  /**
++   * Unsigned 16-bit integer
++   */
++  PTYPE_U16 = 1,
++  /**
++   * Unsigned 32-bit integer
++   */
++  PTYPE_U32 = 2,
++  /**
++   * Unsigned 64-bit integer
++   */
++  PTYPE_U64 = 3,
++  /**
++   * Signed 8-bit integer
++   */
++  PTYPE_I8 = 4,
++  /**
++   * Signed 16-bit integer
++   */
++  PTYPE_I16 = 5,
++  /**
++   * Signed 32-bit integer
++   */
++  PTYPE_I32 = 6,
++  /**
++   * Signed 64-bit integer
++   */
++  PTYPE_I64 = 7,
++  /**
++   * 16-bit floating point number
++   */
++  PTYPE_F16 = 8,
++  /**
++   * 32-bit floating point number
++   */
++  PTYPE_F32 = 9,
++  /**
++   * 64-bit floating point number
++   */
++  PTYPE_F64 = 10,
+ } vx_ptype;
+ 
+ /**
+  * Validity representation for arrays constructed through the C FFI.
+  */
+ typedef enum {
+-    /**
+-     * Items can't be null
+-     */
+-    VX_VALIDITY_NON_NULLABLE = 0,
+-    /**
+-     * All items are valid
+-     */
+-    VX_VALIDITY_ALL_VALID = 1,
+-    /**
+-     * All items are invalid
+-     */
+-    VX_VALIDITY_ALL_INVALID = 2,
+-    /**
+-     * Items validity is determined by a boolean array. True values in boolean
+-     * array are valid, false values are invalid (null)
+-     */
+-    VX_VALIDITY_ARRAY = 3,
++  /**
++   * Items can't be null
++   */
++  VX_VALIDITY_NON_NULLABLE = 0,
++  /**
++   * All items are valid
++   */
++  VX_VALIDITY_ALL_VALID = 1,
++  /**
++   * All items are invalid
++   */
++  VX_VALIDITY_ALL_INVALID = 2,
++  /**
++   * Items validity is determined by a boolean array. True values in boolean
++   * array are valid, false values are invalid (null)
++   */
++  VX_VALIDITY_ARRAY = 3,
+ } vx_validity_type;
+ 
+ typedef enum {
+-    /**
+-     * No estimate is available.
+-     */
+-    VX_ESTIMATE_UNKNOWN = 0,
+-    /**
+-     * The value in vx_estimate.estimate is exact.
+-     */
+-    VX_ESTIMATE_EXACT = 1,
+-    /**
+-     * The value in vx_estimate.estimate is an upper bound.
+-     */
+-    VX_ESTIMATE_INEXACT = 2,
++  /**
++   * No estimate is available.
++   */
++  VX_ESTIMATE_UNKNOWN = 0,
++  /**
++   * The value in vx_estimate.estimate is exact.
++   */
++  VX_ESTIMATE_EXACT = 1,
++  /**
++   * The value in vx_estimate.estimate is an upper bound.
++   */
++  VX_ESTIMATE_INEXACT = 2,
+ } vx_estimate_type;
+ 
+ /**
+  * Error category for vx_error.
+  */
+ typedef enum {
+-    /**
+-     * All other errors
+-     */
+-    VX_ERROR_CODE_OTHER = 0,
+-    /**
+-     * Index out of bounds
+-     */
+-    VX_ERROR_CODE_OUT_OF_BOUNDS = 1,
+-    /**
+-     * Compute kernel execute error
+-     */
+-    VX_ERROR_CODE_COMPUTE = 2,
+-    /**
+-     * An invalid argument was provided.
+-     */
+-    VX_ERROR_CODE_INVALID_ARGUMENT = 3,
+-    /**
+-     * Serialization/deserialization error
+-     */
+-    VX_ERROR_CODE_SERIALIZATION = 4,
+-    /**
+-     * Unimplemented function
+-     */
+-    VX_ERROR_CODE_NOT_IMPLEMENTED = 5,
+-    /**
+-     * Type mismatch
+-     */
+-    VX_ERROR_CODE_MISMATCHED_TYPES = 6,
+-    /**
+-     * Assertion failed
+-     */
+-    VX_ERROR_CODE_ASSERTION_FAILED = 7,
+-    /**
+-     * IO error
+-     */
+-    VX_ERROR_CODE_IO = 8,
+-    /**
+-     * Panic inside FFI
+-     */
+-    VX_ERROR_CODE_PANIC = 9,
++  /**
++   * All other errors
++   */
++  VX_ERROR_CODE_OTHER = 0,
++  /**
++   * Index out of bounds
++   */
++  VX_ERROR_CODE_OUT_OF_BOUNDS = 1,
++  /**
++   * Compute kernel execute error
++   */
++  VX_ERROR_CODE_COMPUTE = 2,
++  /**
++   * An invalid argument was provided.
++   */
++  VX_ERROR_CODE_INVALID_ARGUMENT = 3,
++  /**
++   * Serialization/deserialization error
++   */
++  VX_ERROR_CODE_SERIALIZATION = 4,
++  /**
++   * Unimplemented function
++   */
++  VX_ERROR_CODE_NOT_IMPLEMENTED = 5,
++  /**
++   * Type mismatch
++   */
++  VX_ERROR_CODE_MISMATCHED_TYPES = 6,
++  /**
++   * Assertion failed
++   */
++  VX_ERROR_CODE_ASSERTION_FAILED = 7,
++  /**
++   * IO error
++   */
++  VX_ERROR_CODE_IO = 8,
++  /**
++   * Panic inside FFI
++   */
++  VX_ERROR_CODE_PANIC = 9,
+ } vx_error_code;
+ 
+ /**
+@@ -253,99 +254,99 @@
+  * logic
+  */
+ typedef enum {
+-    /**
+-     * Expressions are equal.
+-     */
+-    VX_OPERATOR_EQ = 0,
+-    /**
+-     * Expressions are not equal.
+-     */
+-    VX_OPERATOR_NOT_EQ = 1,
+-    /**
+-     * Expression is greater than another
+-     */
+-    VX_OPERATOR_GT = 2,
+-    /**
+-     * Expression is greater or equal to another
+-     */
+-    VX_OPERATOR_GTE = 3,
+-    /**
+-     * Expression is less than another
+-     */
+-    VX_OPERATOR_LT = 4,
+-    /**
+-     * Expression is less or equal to another
+-     */
+-    VX_OPERATOR_LTE = 5,
+-    /**
+-     * Boolean AND /\.
+-     */
+-    VX_OPERATOR_KLEENE_AND = 6,
+-    /**
+-     * Boolean OR \/.
+-     */
+-    VX_OPERATOR_KLEENE_OR = 7,
+-    /**
+-     * The sum of the arguments.
+-     * Errors at runtime if the sum would overflow or underflow.
+-     */
+-    VX_OPERATOR_ADD = 8,
+-    /**
+-     * The difference between the arguments.
+-     * Errors at runtime if the sum would overflow or underflow.
+-     * The result is null at any index where either input is null.
+-     */
+-    VX_OPERATOR_SUB = 9,
+-    /**
+-     * Multiply two numbers
+-     */
+-    VX_OPERATOR_MUL = 10,
+-    /**
+-     * Divide the left side by the right side
+-     */
+-    VX_OPERATOR_DIV = 11,
++  /**
++   * Expressions are equal.
++   */
++  VX_OPERATOR_EQ = 0,
++  /**
++   * Expressions are not equal.
++   */
++  VX_OPERATOR_NOT_EQ = 1,
++  /**
++   * Expression is greater than another
++   */
++  VX_OPERATOR_GT = 2,
++  /**
++   * Expression is greater or equal to another
++   */
++  VX_OPERATOR_GTE = 3,
++  /**
++   * Expression is less than another
++   */
++  VX_OPERATOR_LT = 4,
++  /**
++   * Expression is less or equal to another
++   */
++  VX_OPERATOR_LTE = 5,
++  /**
++   * Boolean AND /\.
++   */
++  VX_OPERATOR_KLEENE_AND = 6,
++  /**
++   * Boolean OR \/.
++   */
++  VX_OPERATOR_KLEENE_OR = 7,
++  /**
++   * The sum of the arguments.
++   * Errors at runtime if the sum would overflow or underflow.
++   */
++  VX_OPERATOR_ADD = 8,
++  /**
++   * The difference between the arguments.
++   * Errors at runtime if the sum would overflow or underflow.
++   * The result is null at any index where either input is null.
++   */
++  VX_OPERATOR_SUB = 9,
++  /**
++   * Multiply two numbers
++   */
++  VX_OPERATOR_MUL = 10,
++  /**
++   * Divide the left side by the right side
++   */
++  VX_OPERATOR_DIV = 11,
+ } vx_binary_operator;
+ 
+ /**
+  * Log levels for the Vortex library.
+  */
+ typedef enum {
+-    /**
+-     * No logging will be performed.
+-     */
+-    LOG_LEVEL_OFF = 0,
+-    /**
+-     * Only error messages will be logged.
+-     */
+-    LOG_LEVEL_ERROR = 1,
+-    /**
+-     * Warnings and error messages will be logged.
+-     */
+-    LOG_LEVEL_WARN = 2,
+-    /**
+-     * Informational messages, warnings, and error messages will be logged.
+-     */
+-    LOG_LEVEL_INFO = 3,
+-    /**
+-     * Debug messages, informational messages, warnings, and error messages will be logged.
+-     */
+-    LOG_LEVEL_DEBUG = 4,
+-    /**
+-     * All messages, including trace messages, will be logged.
+-     */
+-    LOG_LEVEL_TRACE = 5,
++  /**
++   * No logging will be performed.
++   */
++  LOG_LEVEL_OFF = 0,
++  /**
++   * Only error messages will be logged.
++   */
++  LOG_LEVEL_ERROR = 1,
++  /**
++   * Warnings and error messages will be logged.
++   */
++  LOG_LEVEL_WARN = 2,
++  /**
++   * Informational messages, warnings, and error messages will be logged.
++   */
++  LOG_LEVEL_INFO = 3,
++  /**
++   * Debug messages, informational messages, warnings, and error messages will be logged.
++   */
++  LOG_LEVEL_DEBUG = 4,
++  /**
++   * All messages, including trace messages, will be logged.
++   */
++  LOG_LEVEL_TRACE = 5,
+ } vx_log_level;
+ 
+ typedef enum {
+-    VX_SELECTION_INCLUDE_ALL = 0,
+-    /**
+-     * Include rows at the indices in vx_scan_selection.idx.
+-     */
+-    VX_SELECTION_INCLUDE_RANGE = 1,
+-    /**
+-     * Exclude rows at the indices in vx_scan_selection.idx.
+-     */
+-    VX_SELECTION_EXCLUDE_RANGE = 2,
++  VX_SELECTION_INCLUDE_ALL = 0,
++  /**
++   * Include rows at the indices in vx_scan_selection.idx.
++   */
++  VX_SELECTION_INCLUDE_RANGE = 1,
++  /**
++   * Exclude rows at the indices in vx_scan_selection.idx.
++   */
++  VX_SELECTION_EXCLUDE_RANGE = 2,
+ } vx_scan_selection_include;
+ 
+ /**
+@@ -463,58 +464,102 @@
+  * Array validity descriptor used by C FFI constructors.
+  */
+ typedef struct {
+-    /**
+-     * The kind of validity represented by this descriptor.
+-     */
+-    vx_validity_type type;
+-    /**
+-     * If type is not VX_VALIDITY_ARRAY, this is NULL.
+-     * If type is VX_VALIDITY_ARRAY, this is set to an owned boolean validity
+-     * array which must be freed by the caller.
+-     */
+-    const vx_array *array;
++  /**
++   * The kind of validity represented by this descriptor.
++   */
++  vx_validity_type type;
++  /**
++   * If type is not VX_VALIDITY_ARRAY, this is NULL.
++   * If type is VX_VALIDITY_ARRAY, this is set to an owned boolean validity
++   * array which must be freed by the caller.
++   */
++  const vx_array *array;
+ } vx_validity;
+ 
+ /**
+  * A non owning view over a byte range.
+  */
+ typedef struct {
+-    /**
+-     * NULL "ptr" requires len == 0
+-     */
+-    const char *ptr;
+-    /**
+-     * Length in bytes.
+-     */
+-    size_t len;
++  /**
++   * NULL "ptr" requires len == 0
++   */
++  const char *ptr;
++  /**
++   * Length in bytes.
++   */
++  size_t len;
+ } vx_view;
+ 
+ /**
+  * Options for creating a data source.
+  */
+ typedef struct {
+-    /**
+-     * Required: paths to files, tables, or layout trees. Each entry may be a
+-     * glob pattern like "*.vortex". Must point to an array of size
+-     * "paths_len". "paths" bytes are copied.
+-     */
+-    const vx_view *paths;
+-    /**
+-     * Number of entries in "paths".
+-     */
+-    size_t paths_len;
++  /**
++   * Required: paths to files, tables, or layout trees. Each entry may be a
++   * glob pattern like "*.vortex". Must point to an array of size
++   * "paths_len". "paths" bytes are copied.
++   */
++  const vx_view *paths;
++  /**
++   * Number of entries in "paths".
++   */
++  size_t paths_len;
+ } vx_data_source_options;
++
++/**
++ * A random-access byte source implemented by the caller.
++ *
++ * Vortex invokes "read_at" from its own worker threads, potentially many calls
++ * at once, so the implementation must tolerate concurrent positional reads.
++ * The struct itself is only read during the call that consumes it; the
++ * callbacks and "ctx" must stay valid until "release" runs.
++ */
++typedef struct {
++  /**
++   * Opaque caller state passed to every callback. May be NULL.
++   */
++  void *ctx;
++  /**
++   * Total length of the source in bytes. Required: Vortex reads the footer
++   * relative to the end, so a wrong length surfaces as a corrupt file.
++   */
++  uint64_t len;
++  /**
++   * Maximum number of concurrent "read_at" calls. 0 selects a default.
++   */
++  size_t concurrency;
++  /**
++   * Optional name, typically the original URI. Used for cache keys and error
++   * messages, so it should be stable and unique. Bytes are copied. Pass a
++   * zero-length view for an anonymous source.
++   */
++  vx_view name;
++  /**
++   * Read exactly "length" bytes starting at absolute "offset" into "dst".
++   *
++   * Short reads are not permitted: either fill the whole buffer and return 0,
++   * or return non-zero to fail the read. Returning 0 without filling the
++   * buffer hands uninitialized memory to the scan.
++   *
++   * Required.
++   */
++  int32_t (*read_at)(void *ctx, uint64_t offset, uint8_t *dst, size_t length);
++  /**
++   * Called once, when Vortex has finished with the source. Optional.
++   */
++  void (*release)(void *ctx);
++} vx_readat;
+ 
+ /**
+  * Used for estimating number of partitions in a data source or number of rows
+  * in a partition.
+  */
+ typedef struct {
+-    vx_estimate_type type;
+-    /**
+-     * Set only when "type" is not VX_ESTIMATE_UNKNOWN.
+-     */
+-    uint64_t estimate;
++  vx_estimate_type type;
++  /**
++   * Set only when "type" is not VX_ESTIMATE_UNKNOWN.
++   */
++  uint64_t estimate;
+ } vx_estimate;
+ 
+ /**
+@@ -522,16 +567,16 @@
+  * "idx" is copied while calling vx_data_source_scan and can be freed after.
+  */
+ typedef struct {
+-    /**
+-     * Used only when "include" is not VX_SELECTION_INCLUDE_ALL.
+-     * If set, must point to an array of len "idx_len" row_indices.
+-     */
+-    const uint64_t *idx;
+-    /**
+-     * Used only when "include" is not VX_SELECTION_INCLUDE_ALL
+-     */
+-    size_t idx_len;
+-    vx_scan_selection_include include;
++  /**
++   * Used only when "include" is not VX_SELECTION_INCLUDE_ALL.
++   * If set, must point to an array of len "idx_len" row_indices.
++   */
++  const uint64_t *idx;
++  /**
++   * Used only when "include" is not VX_SELECTION_INCLUDE_ALL
++   */
++  size_t idx_len;
++  vx_scan_selection_include include;
+ } vx_scan_selection;
+ 
+ /**
+@@ -539,33 +584,35 @@
+  * zero-initialize this struct.
+  */
+ typedef struct {
+-    /**
+-     * What columns to return. NULL means all columns.
+-     */
+-    const vx_expression *projection;
+-    /**
+-     * Predicate expression. NULL means no filter.
+-     */
+-    const vx_expression *filter;
+-    /**
+-     * Row range [begin, end). Setting row_range_begin and row_range_end to 0
+-     * means no limit.
+-     */
+-    uint64_t row_range_begin;
+-    uint64_t row_range_end;
+-    /**
+-     * Row-index filter applied after row_range.
+-     */
+-    vx_scan_selection selection;
+-    /**
+-     * Maximum number of rows to return. 0 means no limit.
+-     */
+-    uint64_t limit;
+-    /**
+-     * If true, return in storage order.
+-     */
+-    bool ordered;
++  /**
++   * What columns to return. NULL means all columns.
++   */
++  const vx_expression *projection;
++  /**
++   * Predicate expression. NULL means no filter.
++   */
++  const vx_expression *filter;
++  /**
++   * Row range [begin, end). Setting row_range_begin and row_range_end to 0
++   * means no limit.
++   */
++  uint64_t row_range_begin;
++  uint64_t row_range_end;
++  /**
++   * Row-index filter applied after row_range.
++   */
++  vx_scan_selection selection;
++  /**
++   * Maximum number of rows to return. 0 means no limit.
++   */
++  uint64_t limit;
++  /**
++   * If true, return in storage order.
++   */
++  bool ordered;
+ } vx_scan_options;
++
++
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -641,7 +688,10 @@
+ 
+ const vx_array *vx_array_get_field(const vx_array *array, size_t index, vx_error **error_out);
+ 
+-const vx_array *vx_array_slice(const vx_array *array, size_t start, size_t stop, vx_error **error_out);
++const vx_array *vx_array_slice(const vx_array *array,
++                               size_t start,
++                               size_t stop,
++                               vx_error **error_out);
+ 
+ /**
+  * Check whether array's element at index is invalid (null) according to the
+@@ -759,15 +809,19 @@
+  *
+  * Errors if "index" is out of bounds.
+  */
+-const vx_scalar *
+-vx_array_get_scalar(const vx_session *session, const vx_array *array, size_t index, vx_error **error_out);
++const vx_scalar *vx_array_get_scalar(const vx_session *session,
++                                     const vx_array *array,
++                                     size_t index,
++                                     vx_error **error_out);
+ 
+ /**
+  * Decode array into its canonical form.
+  *
+  * On error returns NULL and "sets error_out".
+  */
+-const vx_array *vx_array_canonicalize(const vx_session *session, const vx_array *array, vx_error **error_out);
++const vx_array *vx_array_canonicalize(const vx_session *session,
++                                      const vx_array *array,
++                                      vx_error **error_out);
+ 
+ /**
+  * Return a pointer to the values buffer of a canonical Primitive array.
+@@ -786,14 +840,18 @@
+  *
+  * Errors if array is not a canonical Bool.
+  */
+-const void *vx_array_data_ptr_bool(const vx_array *array, size_t *bit_offset_out, vx_error **error_out);
++const void *vx_array_data_ptr_bool(const vx_array *array,
++                                   size_t *bit_offset_out,
++                                   vx_error **error_out);
+ 
+ /**
+  * Apply the expression to the array, wrapping it with a ScalarFnArray.
+  * This operation takes constant time as it doesn't execute the underlying
+  * array. Executing the underlying array still takes O(n) time.
+  */
+-const vx_array *vx_array_apply(const vx_array *array, const vx_expression *expression, vx_error **error);
++const vx_array *vx_array_apply(const vx_array *array,
++                               const vx_expression *expression,
++                               vx_error **error);
+ 
+ /**
+  * Free a vx_data_source
+@@ -807,8 +865,9 @@
+  *
+  * On error, returns NULL and sets "err".
+  */
+-const vx_data_source *
+-vx_data_source_new(const vx_session *session, const vx_data_source_options *options, vx_error **err);
++const vx_data_source *vx_data_source_new(const vx_session *session,
++                                         const vx_data_source_options *options,
++                                         vx_error **err);
+ 
+ /**
+  * Create a data source from a single in-memory Vortex file.
+@@ -819,8 +878,33 @@
+  *
+  * On error, returns NULL and sets "err".
+  */
+-const vx_data_source *
+-vx_data_source_new_buffer(const vx_session *session, const void *buffer, size_t buffer_len, vx_error **err);
++const vx_data_source *vx_data_source_new_buffer(const vx_session *session,
++                                                const void *buffer,
++                                                size_t buffer_len,
++                                                vx_error **err);
++
++/**
++ * Create a data source that reads through caller-supplied callbacks instead of
++ * Vortex's own I/O.
++ *
++ * This lets a host that already has a configured I/O stack - credentials,
++ * endpoints, retry policy - keep using it rather than duplicating that
++ * configuration inside Vortex. The alternative available until now was to read
++ * the whole file into memory and pass it to vx_data_source_new_buffer, which
++ * works but discards the I/O pruning that makes Vortex fast on selective
++ * scans: with a callback, only the segments a scan actually needs are fetched.
++ *
++ * "reader" is read during this call only; its callbacks and context must remain
++ * valid until the reader's "release" callback runs. The caller retains ownership
++ * if descriptor validation fails (null session/reader, missing read callback,
++ * or invalid UTF-8 name). After validation, ownership transfers to Vortex and
++ * "release" runs even if opening the file subsequently fails.
++ *
++ * On error, returns NULL and sets "err".
++ */
++const vx_data_source *vx_data_source_new_readat(const vx_session *session,
++                                                const vx_readat *reader,
++                                                vx_error **err);
+ 
+ /**
+  * Increase reference count on vx_data_source
+@@ -884,7 +968,9 @@
+  *
+  * Takes ownership of the `element` pointer.
+  */
+-const vx_dtype *vx_dtype_new_fixed_size_list(const vx_dtype *element, uint32_t size, bool is_nullable);
++const vx_dtype *vx_dtype_new_fixed_size_list(const vx_dtype *element,
++                                             uint32_t size,
++                                             bool is_nullable);
+ 
+ /**
+  * Create a new struct data type.
+@@ -968,8 +1054,9 @@
+  *
+  * On error, returns NULL and sets `err`.
+  */
+-const vx_dtype *
+-vx_dtype_from_arrow_schema(const vx_session *session, FFI_ArrowSchema *schema, vx_error **err);
++const vx_dtype *vx_dtype_from_arrow_schema(const vx_session *session,
++                                           FFI_ArrowSchema *schema,
++                                           vx_error **err);
+ 
+ /**
+  * Free a vx_error
+@@ -1049,6 +1136,49 @@
+ vx_expression *vx_expression_literal(const vx_scalar *scalar, vx_error **err);
+ 
+ /**
++ * Create an expression yielding each row's index within the file being
++ * scanned.
++ *
++ * Projecting this alongside the data lets a caller recover a row's original
++ * position even when a scan filter has dropped the rows around it. That
++ * matters for formats layered on top of Vortex whose semantics are defined in
++ * terms of physical row positions - for example Iceberg's positional deletes
++ * and row-lineage columns - which otherwise cannot be combined with predicate
++ * pushdown at all.
++ */
++vx_expression *vx_expression_row_idx(void);
++
++/**
++ * Create a struct-valued expression from named child expressions.
++ *
++ * Where vx_expression_select narrows one struct to some of its fields, pack
++ * builds a new struct out of arbitrary expressions, so it is what allows a
++ * projection to be assembled rather than merely trimmed. Pruning fields inside
++ * a nested struct needs this: select the wanted leaves from each subtree, then
++ * pack the results back into the shape the caller expects.
++ *
++ * "names" and "expressions" must both point to arrays of "len" entries, paired
++ * by position. "nullable" sets whether the resulting struct is nullable. Name
++ * bytes are copied.
++ *
++ * Returns NULL if len == 0, if either array is NULL, or if a name is not valid
++ * UTF-8.
++ *
++ * Example:
++ *
++ * vx_expression* root = vx_expression_root();
++ * vx_expression* addr = vx_expression_get_item(vx_view_from_cstr("addr"), root);
++ * vx_expression* city = vx_expression_get_item(vx_view_from_cstr("city"), addr);
++ * vx_view names[] = {vx_view_from_cstr("city")};
++ * const vx_expression* parts[] = {city};
++ * vx_expression* packed = vx_expression_pack(names, parts, 1, false);
++ */
++vx_expression *vx_expression_pack(const vx_view *names,
++                                  const vx_expression *const *expressions,
++                                  size_t len,
++                                  bool nullable);
++
++/**
+  * Create an expression that selects (includes) specific fields from a child
+  * expression. Child expression must have a DTYPE_STRUCT dtype. Errors in
+  * vx_array_apply if the child expression doesn't have a specified field.
+@@ -1098,8 +1228,9 @@
+  *     return vx_expression_binary(VX_OPERATOR_EQ, lhs, rhs);
+  * }
+  */
+-vx_expression *
+-vx_expression_binary(vx_binary_operator operator_, const vx_expression *lhs, const vx_expression *rhs);
++vx_expression *vx_expression_binary(vx_binary_operator operator_,
++                                    const vx_expression *lhs,
++                                    const vx_expression *rhs);
+ 
+ /**
+  * Create a logical NOT of the child expression.
+@@ -1361,8 +1492,11 @@
+  *
+  * Returns NULL and sets "err" on error.
+  */
+-vx_scalar *
+-vx_scalar_new_decimal_i8(int8_t value, uint8_t precision, int8_t scale, bool is_nullable, vx_error **err);
++vx_scalar *vx_scalar_new_decimal_i8(int8_t value,
++                                    uint8_t precision,
++                                    int8_t scale,
++                                    bool is_nullable,
++                                    vx_error **err);
+ 
+ /**
+  * Return the unscaled i8 value of a decimal scalar.
+@@ -1377,8 +1511,11 @@
+  *
+  * Returns NULL and sets "err" on error.
+  */
+-vx_scalar *
+-vx_scalar_new_decimal_i16(int16_t value, uint8_t precision, int8_t scale, bool is_nullable, vx_error **err);
++vx_scalar *vx_scalar_new_decimal_i16(int16_t value,
++                                     uint8_t precision,
++                                     int8_t scale,
++                                     bool is_nullable,
++                                     vx_error **err);
+ 
+ /**
+  * Return the unscaled i16 value of a decimal scalar.
+@@ -1393,8 +1530,11 @@
+  *
+  * Returns NULL and sets "err" on error.
+  */
+-vx_scalar *
+-vx_scalar_new_decimal_i32(int32_t value, uint8_t precision, int8_t scale, bool is_nullable, vx_error **err);
++vx_scalar *vx_scalar_new_decimal_i32(int32_t value,
++                                     uint8_t precision,
++                                     int8_t scale,
++                                     bool is_nullable,
++                                     vx_error **err);
+ 
+ /**
+  * Return the unscaled i32 value of a decimal scalar.
+@@ -1409,8 +1549,11 @@
+  *
+  * Returns NULL and sets "err" on error.
+  */
+-vx_scalar *
+-vx_scalar_new_decimal_i64(int64_t value, uint8_t precision, int8_t scale, bool is_nullable, vx_error **err);
++vx_scalar *vx_scalar_new_decimal_i64(int64_t value,
++                                     uint8_t precision,
++                                     int8_t scale,
++                                     bool is_nullable,
++                                     vx_error **err);
+ 
+ /**
+  * Return the unscaled i64 value of a decimal scalar.
+@@ -1587,8 +1730,10 @@
+  * To close the stream close the sink with `vx_array_sink_close`.
+  * "path" is copied.
+  */
+-vx_array_sink *
+-vx_array_sink_open_file(const vx_session *session, vx_view path, const vx_dtype *dtype, vx_error **error_out);
++vx_array_sink *vx_array_sink_open_file(const vx_session *session,
++                                       vx_view path,
++                                       const vx_dtype *dtype,
++                                       vx_error **error_out);
+ 
+ /**
+  * Push an array into a file sink.
+@@ -1622,7 +1767,8 @@
+  * If you don't know capacity, pass 0.
+  * if validity is NULL, returns NULL.
+  */
+-vx_struct_column_builder *vx_struct_column_builder_new(const vx_validity *validity, size_t capacity);
++vx_struct_column_builder *vx_struct_column_builder_new(const vx_validity *validity,
++                                                       size_t capacity);
+ 
+ /**
+  * Add a named field to a struct array builder.
+@@ -1659,7 +1805,8 @@
+  * vx_array_free(struct_array);
+  * vx_array_free(field_array);
+  */
+-const vx_array *vx_struct_column_builder_finalize(vx_struct_column_builder *builder, vx_error **error);
++const vx_array *vx_struct_column_builder_finalize(vx_struct_column_builder *builder,
++                                                  vx_error **error);
+ 
+ /**
+  * Free a vx_struct_fields
+@@ -1714,14 +1861,14 @@
+ vx_struct_fields *vx_struct_fields_builder_finalize(vx_struct_fields_builder *builder);
+ 
+ #ifdef __cplusplus
+-} // extern "C"
+-#endif // __cplusplus
++}  // extern "C"
++#endif  // __cplusplus
+ 
+ /**
+  * Create a view over a null-terminated C string.
+  * View is valid as long as "str" is valid
+  */
+-static inline vx_view vx_view_from_cstr(const char *str) {
++static inline vx_view vx_view_from_cstr(const char* str) {
+     vx_view s;
+     s.ptr = str;
+     s.len = strlen(str);
+--- a/vortex-ffi/src/data_source.rs
++++ b/vortex-ffi/src/data_source.rs
+@@ -23,6 +23,8 @@
+ use crate::dtype::vx_dtype;
+ use crate::error::try_or;
+ use crate::error::vx_error;
++use crate::read_at::read_at_from_ffi;
++use crate::read_at::vx_readat;
+ use crate::scan::vx_estimate;
+ use crate::scan::vx_estimate_type;
+ use crate::session::vx_session;
+@@ -145,6 +147,52 @@
+             file.layout_reader()?,
+             Vec::new(),
+             vec![Some(buffer_len as u64)],
++            session,
++        );
++
++        Ok(vx_data_source::new(ds))
++    })
++}
++
++/// Create a data source that reads through caller-supplied callbacks instead of
++/// Vortex's own I/O.
++///
++/// This lets a host that already has a configured I/O stack - credentials,
++/// endpoints, retry policy - keep using it rather than duplicating that
++/// configuration inside Vortex. The alternative available until now was to read
++/// the whole file into memory and pass it to vx_data_source_new_buffer, which
++/// works but discards the I/O pruning that makes Vortex fast on selective
++/// scans: with a callback, only the segments a scan actually needs are fetched.
++///
++/// "reader" is read during this call only; its callbacks and context must remain
++/// valid until the reader's "release" callback runs. The caller retains ownership
++/// if descriptor validation fails (null session/reader, missing read callback,
++/// or invalid UTF-8 name). After validation, ownership transfers to Vortex and
++/// "release" runs even if opening the file subsequently fails.
++///
++/// On error, returns NULL and sets "err".
++#[unsafe(no_mangle)]
++pub unsafe extern "C-unwind" fn vx_data_source_new_readat(
++    session: *const vx_session,
++    reader: *const vx_readat,
++    err: *mut *mut vx_error,
++) -> *const vx_data_source {
++    try_or(err, ptr::null(), || {
++        vortex_ensure!(!session.is_null());
++
++        let session = vx_session::as_ref(session);
++        let source = unsafe { read_at_from_ffi(reader) }?;
++
++        let (file, len) = RUNTIME.block_on(async {
++            let len = source.size().await?;
++            let file = session.open_options().open(source).await?;
++            VortexResult::Ok((file, len))
++        })?;
++
++        let ds = MultiLayoutDataSource::new_with_first(
++            file.layout_reader()?,
++            Vec::new(),
++            vec![Some(len)],
+             session,
+         );
+ 
+--- a/vortex-ffi/src/expression.rs
++++ b/vortex-ffi/src/expression.rs
+@@ -16,8 +16,10 @@
+ use vortex::expr::lit;
+ use vortex::expr::not;
+ use vortex::expr::or_collect;
++use vortex::expr::pack;
+ use vortex::expr::root;
+ use vortex::expr::select;
++use vortex::layout::layouts::row_idx::row_idx;
+ use vortex::scalar_fn::ScalarFnVTableExt;
+ use vortex::scalar_fn::fns::binary::Binary;
+ use vortex::scalar_fn::fns::operators::Operator;
+@@ -106,6 +108,68 @@
+     try_or(err, ptr::null_mut(), || {
+         Ok(vx_expression::new(lit(vx_scalar::as_ref(scalar).clone())))
+     })
++}
++
++/// Create an expression yielding each row's index within the file being
++/// scanned.
++///
++/// Projecting this alongside the data lets a caller recover a row's original
++/// position even when a scan filter has dropped the rows around it. That
++/// matters for formats layered on top of Vortex whose semantics are defined in
++/// terms of physical row positions - for example Iceberg's positional deletes
++/// and row-lineage columns - which otherwise cannot be combined with predicate
++/// pushdown at all.
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn vx_expression_row_idx() -> *mut vx_expression {
++    vx_expression::new(row_idx())
++}
++
++/// Create a struct-valued expression from named child expressions.
++///
++/// Where vx_expression_select narrows one struct to some of its fields, pack
++/// builds a new struct out of arbitrary expressions, so it is what allows a
++/// projection to be assembled rather than merely trimmed. Pruning fields inside
++/// a nested struct needs this: select the wanted leaves from each subtree, then
++/// pack the results back into the shape the caller expects.
++///
++/// "names" and "expressions" must both point to arrays of "len" entries, paired
++/// by position. "nullable" sets whether the resulting struct is nullable. Name
++/// bytes are copied.
++///
++/// Returns NULL if len == 0, if either array is NULL, or if a name is not valid
++/// UTF-8.
++///
++/// Example:
++///
++/// vx_expression* root = vx_expression_root();
++/// vx_expression* addr = vx_expression_get_item(vx_view_from_cstr("addr"), root);
++/// vx_expression* city = vx_expression_get_item(vx_view_from_cstr("city"), addr);
++/// vx_view names[] = {vx_view_from_cstr("city")};
++/// const vx_expression* parts[] = {city};
++/// vx_expression* packed = vx_expression_pack(names, parts, 1, false);
++#[unsafe(no_mangle)]
++pub unsafe extern "C" fn vx_expression_pack(
++    names: *const vx_view,
++    expressions: *const *const vx_expression,
++    len: usize,
++    nullable: bool,
++) -> *mut vx_expression {
++    if len == 0 || names.is_null() || expressions.is_null() {
++        return ptr::null_mut();
++    }
++
++    let names = match unsafe { to_field_names(names, len) } {
++        Ok(names) => names,
++        Err(_) => return ptr::null_mut(),
++    };
++
++    let exprs = unsafe { slice::from_raw_parts(expressions, len) };
++    let elements = names
++        .into_iter()
++        .zip(exprs.iter().map(|e| vx_expression::as_ref(*e).clone()))
++        .collect::<Vec<_>>();
++
++    vx_expression::new(pack(elements, nullable.into()))
+ }
+ 
+ /// Create an expression that selects (includes) specific fields from a child
+--- a/vortex-ffi/src/lib.rs
++++ b/vortex-ffi/src/lib.rs
+@@ -15,6 +15,7 @@
+ mod expression;
+ mod log;
+ mod ptype;
++mod read_at;
+ mod scalar;
+ mod scan;
+ mod session;
+--- /dev/null
++++ b/vortex-ffi/src/read_at.rs
+@@ -0,0 +1,223 @@
++// SPDX-License-Identifier: Apache-2.0
++// SPDX-FileCopyrightText: Copyright the Vortex contributors
++
++//! A [`VortexReadAt`] backed by caller-supplied C callbacks.
++//!
++//! Vortex normally does its own I/O, which means an embedding host has to hand
++//! Vortex a path plus enough configuration to reach the storage itself. That is
++//! a poor fit for hosts that already have a configured I/O stack -- credentials,
++//! endpoints, retry policy, request signing -- because it forces that
++//! configuration to be duplicated, and duplicated differently, on the Vortex
++//! side. Letting the host supply the bytes instead keeps one I/O path.
++//!
++//! The Java bindings already work this way via `dev.vortex.io.NativeReadable`;
++//! this is the same arrangement expressed as C function pointers. See
++//! <https://github.com/vortex-data/vortex/issues/8433>.
++
++use std::ffi::c_void;
++use std::sync::Arc;
++
++use futures::FutureExt;
++use futures::future::BoxFuture;
++use vortex::array::buffer::BufferHandle;
++use vortex::buffer::Alignment;
++use vortex::buffer::ByteBufferMut;
++use vortex::error::VortexResult;
++use vortex::error::vortex_bail;
++use vortex::error::vortex_ensure;
++use vortex::error::vortex_err;
++use vortex::io::CoalesceConfig;
++use vortex::io::VortexReadAt;
++use vortex::io::runtime::BlockingRuntime;
++use vortex::io::runtime::Handle;
++
++use crate::string::vx_view;
++
++/// Default cap on concurrent read callbacks when a caller passes 0.
++///
++/// Matches the object-store default: a host that delegates its I/O is usually
++/// talking to remote storage, where deep queues matter more than they cost.
++const DEFAULT_CONCURRENCY: usize = 192;
++
++/// A random-access byte source implemented by the caller.
++///
++/// Vortex invokes "read_at" from its own worker threads, potentially many calls
++/// at once, so the implementation must tolerate concurrent positional reads.
++/// The struct itself is only read during the call that consumes it; the
++/// callbacks and "ctx" must stay valid until "release" runs.
++#[repr(C)]
++pub struct vx_readat {
++    /// Opaque caller state passed to every callback. May be NULL.
++    pub ctx: *mut c_void,
++    /// Total length of the source in bytes. Required: Vortex reads the footer
++    /// relative to the end, so a wrong length surfaces as a corrupt file.
++    pub len: u64,
++    /// Maximum number of concurrent "read_at" calls. 0 selects a default.
++    pub concurrency: usize,
++    /// Optional name, typically the original URI. Used for cache keys and error
++    /// messages, so it should be stable and unique. Bytes are copied. Pass a
++    /// zero-length view for an anonymous source.
++    pub name: vx_view,
++    /// Read exactly "length" bytes starting at absolute "offset" into "dst".
++    ///
++    /// Short reads are not permitted: either fill the whole buffer and return 0,
++    /// or return non-zero to fail the read. Returning 0 without filling the
++    /// buffer hands uninitialized memory to the scan.
++    ///
++    /// Required.
++    pub read_at: Option<
++        unsafe extern "C" fn(ctx: *mut c_void, offset: u64, dst: *mut u8, length: usize) -> i32,
++    >,
++    /// Called once, when Vortex has finished with the source. Optional.
++    pub release: Option<unsafe extern "C" fn(ctx: *mut c_void)>,
++}
++
++/// The callbacks and context, owned for as long as Vortex holds the source.
++struct CReadAtInner {
++    ctx: *mut c_void,
++    len: u64,
++    concurrency: usize,
++    name: Option<Arc<str>>,
++    read_at: unsafe extern "C" fn(*mut c_void, u64, *mut u8, usize) -> i32,
++    release: Option<unsafe extern "C" fn(*mut c_void)>,
++}
++
++// SAFETY: the documented contract for `vx_readat` requires `read_at` to be safe
++// to call concurrently from arbitrary threads, and `ctx` to be valid until
++// `release`. Vortex holds the source behind an Arc and calls nothing after drop.
++unsafe impl Send for CReadAtInner {}
++unsafe impl Sync for CReadAtInner {}
++
++impl Drop for CReadAtInner {
++    fn drop(&mut self) {
++        if let Some(release) = self.release {
++            // SAFETY: called exactly once, on the last owner, and after every
++            // read has completed - reads borrow the Arc that owns this.
++            unsafe { release(self.ctx) };
++        }
++    }
++}
++
++/// A [`VortexReadAt`] that forwards positional reads to C callbacks.
++///
++/// The callback is blocking, so each read runs on the runtime's blocking pool
++/// rather than on the thread driving the scan: the FFI runtime is
++/// current-thread, and calling out to host I/O directly from a future would
++/// stall every other task on it.
++struct CReadAt {
++    inner: Arc<CReadAtInner>,
++    handle: Handle,
++}
++
++impl VortexReadAt for CReadAt {
++    fn uri(&self) -> Option<&Arc<str>> {
++        self.inner.name.as_ref()
++    }
++
++    fn coalesce_config(&self) -> Option<CoalesceConfig> {
++        // Each read crosses the FFI boundary into host I/O that is usually
++        // remote, so prefer fewer, larger requests.
++        Some(CoalesceConfig::object_storage())
++    }
++
++    fn concurrency(&self) -> usize {
++        self.inner.concurrency
++    }
++
++    fn size(&self) -> BoxFuture<'static, VortexResult<u64>> {
++        let len = self.inner.len;
++
++        async move { Ok(len) }.boxed()
++    }
++
++    fn read_at(
++        &self,
++        offset: u64,
++        length: usize,
++        alignment: Alignment,
++    ) -> BoxFuture<'static, VortexResult<BufferHandle>> {
++        let inner = Arc::clone(&self.inner);
++        let handle = self.handle.clone();
++
++        async move {
++            handle
++                .spawn_blocking(move || {
++                    let end = offset
++                        .checked_add(length as u64)
++                        .ok_or_else(|| vortex_err!("read {offset}+{length} overflows u64"))?;
++                    if end > inner.len {
++                        vortex_bail!(
++                            "read {offset}..{end} out of bounds for source of length {}",
++                            inner.len
++                        );
++                    }
++
++                    let mut buffer = ByteBufferMut::with_capacity_aligned(length, alignment);
++
++                    if length > 0 {
++                        // SAFETY: the spare capacity covers `length` bytes of live
++                        // allocation, and the pointer is not retained past the call.
++                        let rc = unsafe {
++                            (inner.read_at)(
++                                inner.ctx,
++                                offset,
++                                buffer.spare_capacity_mut().as_mut_ptr().cast(),
++                                length,
++                            )
++                        };
++                        if rc != 0 {
++                            vortex_bail!(
++                                "read_at callback failed with code {rc} for {offset}..{end}"
++                            );
++                        }
++                    }
++
++                    // SAFETY: the callback contract requires all `length` bytes to be
++                    // written whenever it reports success.
++                    unsafe { buffer.set_len(length) };
++
++                    Ok(BufferHandle::new_host(buffer.freeze()))
++                })
++                .await
++        }
++        .boxed()
++    }
++}
++
++/// Build an owned [`VortexReadAt`] from a caller-supplied `vx_readat`.
++///
++/// On failure the caller keeps ownership of `ctx`: `release` is only wired up
++/// once the source has been constructed, so a rejected descriptor never
++/// double-frees.
++pub(crate) unsafe fn read_at_from_ffi(reader: *const vx_readat) -> VortexResult<Arc<dyn VortexReadAt>> {
++    vortex_ensure!(!reader.is_null(), "null vx_readat");
++
++    let reader = unsafe { &*reader };
++    let read_at = reader
++        .read_at
++        .ok_or_else(|| vortex_err!("vx_readat.read_at is required"))?;
++
++    let name = if reader.name.ptr.is_null() || reader.name.len == 0 {
++        None
++    } else {
++        Some(Arc::from(unsafe { reader.name.as_str() }?))
++    };
++
++    let concurrency = if reader.concurrency == 0 {
++        DEFAULT_CONCURRENCY
++    } else {
++        reader.concurrency
++    };
++
++    Ok(Arc::new(CReadAt {
++        inner: Arc::new(CReadAtInner {
++            ctx: reader.ctx,
++            len: reader.len,
++            concurrency,
++            name,
++            read_at,
++            release: reader.release,
++        }),
++        handle: crate::RUNTIME.handle(),
++    }))
++}

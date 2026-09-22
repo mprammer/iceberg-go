@@ -43,6 +43,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/klauspost/compress v1.19.2
+	github.com/mprammer/vortex-go v0.0.0-20260922180834-b2b8a4b1350b
 	github.com/pterm/pterm v0.12.83
 	github.com/stretchr/testify v1.11.1
 	github.com/substrait-io/substrait-go/v8 v8.1.1

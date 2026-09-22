@@ -50,7 +50,6 @@ linters:
           - errcheck
         path: _test\.go$
     paths:
-      - third_party$
       - builtin$
       - examples$
 formatters:
@@ -67,6 +66,5 @@ formatters:
   exclusions:
     generated: lax
     paths:
-      - third_party$
       - builtin$
       - examples$

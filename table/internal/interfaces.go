@@ -42,8 +42,10 @@ func GetFile(ctx context.Context, fs iceio.IO, dataFile iceberg.DataFile, isPosD
 			fs:   fs,
 			file: dataFile,
 		}, nil
+	case iceberg.VortexFile:
+		return vortexFileSource(fs, dataFile), nil
 	default:
-		return nil, fmt.Errorf("%w: only parquet format is implemented, got %s",
+		return nil, fmt.Errorf("%w: no reader is implemented for %s",
 			iceberg.ErrNotImplemented, dataFile.FileFormat())
 	}
 }
@@ -100,17 +102,28 @@ func GetFileFormat(format iceberg.FileFormat) FileFormat {
 	switch format {
 	case iceberg.ParquetFile:
 		return parquetFormat{}
+	case iceberg.VortexFile:
+		return vortexFileFormat()
 	default:
 		return nil
 	}
 }
 
 func FormatFromFileName(fileName string) FileFormat {
+	return GetFileFormat(FileFormatNameFromFileName(fileName))
+}
+
+// FileFormatNameFromFileName returns the Iceberg file format a file name
+// denotes, so that callers stamping a DataFile record what they actually read
+// rather than assuming Parquet. It returns "" for an unrecognized extension.
+func FileFormatNameFromFileName(fileName string) iceberg.FileFormat {
 	switch path.Ext(fileName) {
 	case ".parquet":
-		return parquetFormat{}
+		return iceberg.ParquetFile
+	case ".vortex":
+		return iceberg.VortexFile
 	default:
-		return nil
+		return ""
 	}
 }
 

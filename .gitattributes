@@ -25,3 +25,6 @@
 # Force LF for Go sources so gofmt passes when checked out on Windows
 # (Windows runners would otherwise convert LF to CRLF and fail the gofmt linter).
 *.go text eol=lf
+
+# Unified patches preserve a space on blank context lines.
+internal/vortexffi/patches/*.patch whitespace=-blank-at-eol

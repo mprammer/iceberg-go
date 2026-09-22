@@ -1,0 +1,90 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Vortex backends
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+
+concurrency:
+  group: ${{ github.repository }}-${{ github.head_ref || github.sha }}-${{ github.workflow }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  native-and-ffi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      RUSTUP_TOOLCHAIN: '1.98.0'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      VORTEX_BUILD_PROFILE: dev
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Install Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version: '1.26.1'
+        cache: false
+    - name: Configure temporary build directories
+      run: |
+        {
+          printf 'CARGO_HOME=%s/vortex-cargo\n' "$RUNNER_TEMP"
+          printf 'CARGO_TARGET_DIR=%s/vortex-target\n' "$RUNNER_TEMP"
+          printf 'CGO_LDFLAGS=-L%s/vortex-target/debug\n' "$RUNNER_TEMP"
+          printf 'LD_LIBRARY_PATH=%s/vortex-target/debug\n' "$RUNNER_TEMP"
+          printf 'VORTEX_LARGE_FIXTURE=%s/vortex-large.vortex\n' "$RUNNER_TEMP"
+        } >> "$GITHUB_ENV"
+    - name: Install pinned Rust toolchain
+      run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+    - name: Build pinned Rust patch and verify C header
+      run: internal/vortexffi/build-lib.sh "$RUNNER_TEMP/vortex-build"
+    - name: Generate large fixture for I/O and mid-scan error tests
+      working-directory: ${{ runner.temp }}/vortex-build/source
+      run: |
+        cargo run --locked -p vortex-ffi --example iceberg_go_fixture -- "$VORTEX_LARGE_FIXTURE"
+        test -s "$VORTEX_LARGE_FIXTURE"
+    - name: Regenerate current reference corpus from pinned Rust
+      env:
+        VORTEX_RUST_SOURCE: ${{ runner.temp }}/vortex-build/source
+      run: table/internal/testdata/vortex/generate.sh
+    - name: Decode regenerated wrapped Pco corpus with the standalone reader
+      env:
+        CGO_ENABLED: '0'
+        CGO_LDFLAGS: ''
+        LD_LIBRARY_PATH: ''
+      run: |
+        PCO_MODES_FIXTURE="$PWD/table/internal/testdata/vortex/rust/pco_modes.json" \
+          go test -count=1 github.com/mprammer/vortex-go/internal/pco -run '^TestRustModes$'
+    - name: Test native adapter without cgo against the reference corpus
+      env:
+        CGO_ENABLED: '0'
+        CGO_LDFLAGS: ''
+        LD_LIBRARY_PATH: ''
+      run: go test -count=1 ./table/internal ./table ./vortex -run Vortex
+    # Keep the binding suite unfiltered: these tests do not have Vortex in their names.
+    - name: Test every FFI binding regression with race detector
+      run: go test -tags vortex -race -count=1 -v ./internal/vortexffi
+    - name: Test both backend adapters and shared table conformance with race detector
+      run: go test -tags vortex -race -count=1 -v ./table/internal ./table -run Vortex

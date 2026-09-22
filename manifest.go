@@ -2025,6 +2025,10 @@ const (
 	OrcFile     FileFormat = "ORC"
 	ParquetFile FileFormat = "PARQUET"
 	PuffinFile  FileFormat = "PUFFIN"
+	// VortexFile is not in the Iceberg spec's file_format enum. It is proposed
+	// for V4; see the Vortex file format proposal. The reader backend is selected
+	// by the application; it does not change the on-disk format.
+	VortexFile FileFormat = "VORTEX"
 )
 
 // FileFormatFromString parses a file format string (case-insensitive).
@@ -2038,6 +2042,8 @@ func FileFormatFromString(s string) (FileFormat, error) {
 		return AvroFile, nil
 	case string(PuffinFile):
 		return PuffinFile, nil
+	case string(VortexFile):
+		return VortexFile, nil
 	default:
 		return "", fmt.Errorf("unknown file format: %s", s)
 	}
@@ -2662,10 +2668,11 @@ func NewDataFileBuilder(
 		return nil, fmt.Errorf("%w: path cannot be empty", ErrInvalidArgument)
 	}
 
-	if format != AvroFile && format != OrcFile && format != ParquetFile && format != PuffinFile {
+	if format != AvroFile && format != OrcFile && format != ParquetFile && format != PuffinFile &&
+		format != VortexFile {
 		return nil, fmt.Errorf(
-			"%w: format must be one of %s, %s, %s, or %s",
-			ErrInvalidArgument, AvroFile, OrcFile, ParquetFile, PuffinFile,
+			"%w: format must be one of %s, %s, %s, %s, or %s",
+			ErrInvalidArgument, AvroFile, OrcFile, ParquetFile, PuffinFile, VortexFile,
 		)
 	}
 

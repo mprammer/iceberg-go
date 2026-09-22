@@ -1,0 +1,169 @@
+diff --git a/encodings/alp/src/alp/array.rs b/encodings/alp/src/alp/array.rs
+--- a/encodings/alp/src/alp/array.rs
++++ b/encodings/alp/src/alp/array.rs
+@@ -156,7 +156,7 @@
+                     .map(|dtype| children.get(3, &dtype, usize::try_from(p.chunk_offsets_len())?))
+                     .transpose()?;
+ 
+-                Patches::new(len, p.offset()?, indices, values, chunk_offsets)
++                Patches::from_metadata(len, p, indices, values, chunk_offsets)
+             })
+             .transpose()?;
+ 
+@@ -482,6 +482,7 @@
+ #[cfg(test)]
+ mod tests {
+     use std::f64::consts::PI;
++    use std::ops::Range;
+     use std::sync::LazyLock;
+ 
+     use rstest::rstest;
+@@ -502,6 +503,50 @@
+         crate::initialize(&session);
+         session
+     });
++
++    #[rstest]
++    #[case(0..4105, 0)]
++    #[case(5..4100, 2)]
++    #[case(1025..4100, 0)]
++    #[case(1023..1026, 4)]
++    fn test_deserialize_sliced_patches(
++        #[case] range: Range<usize>,
++        #[case] within: usize,
++    ) -> VortexResult<()> {
++        let mut ctx = SESSION.create_execution_ctx();
++        let mut values = vec![1.0f64; 4105];
++        for index in [1, 4, 5, 31, 1023, 1025, 3072, 4095, 4096, 4102] {
++            values[index] = PI;
++        }
++        let original = PrimitiveArray::from_iter(values);
++        let encoded = alp_encode(original.as_view(), Some(Exponents { e: 0, f: 0 }), &mut ctx)?;
++        let sliced = ALP::try_new(
++            encoded.encoded().slice(range.clone())?,
++            encoded.exponents(),
++            encoded.patches().unwrap().slice(range.clone())?,
++        )?;
++        assert_eq!(
++            sliced.patches().unwrap().offset_within_chunk(),
++            Some(within)
++        );
++
++        let metadata = ALP::serialize(sliced.as_view(), &SESSION)?.unwrap();
++        let deserialized = Array::<ALP>::try_from_parts(ALP.deserialize(
++            sliced.dtype(),
++            sliced.len(),
++            &metadata,
++            &[],
++            &sliced.as_array().children(),
++            &SESSION,
++        )?)?;
++
++        assert_eq!(
++            deserialized.patches().unwrap().offset_within_chunk(),
++            Some(within)
++        );
++        assert_arrays_eq!(deserialized, original.slice(range)?, &mut ctx);
++        Ok(())
++    }
+ 
+     #[rstest]
+     #[case(0)]
+diff --git a/vortex-array/src/patches.rs b/vortex-array/src/patches.rs
+--- a/vortex-array/src/patches.rs
++++ b/vortex-array/src/patches.rs
+@@ -294,6 +294,33 @@
+             // Initialize with `Some(0)` only if `chunk_offsets` are set.
+             offset_within_chunk: chunk_offsets.map(|_| 0),
+         })
++    }
++
++    /// Reconstruct patches from serialized metadata, validating components as in [`Self::new`].
++    ///
++    /// Retains the offset within the first chunk after slicing. Older metadata that omits
++    /// this offset keeps the constructor's default of zero when chunk offsets are present.
++    pub fn from_metadata(
++        array_len: usize,
++        metadata: PatchesMetadata,
++        indices: ArrayRef,
++        values: ArrayRef,
++        chunk_offsets: Option<ArrayRef>,
++    ) -> VortexResult<Self> {
++        let mut patches = Self::new(
++            array_len,
++            metadata.offset()?,
++            indices,
++            values,
++            chunk_offsets,
++        )?;
++        if let Some(offset) = metadata.offset_within_chunk {
++            patches.offset_within_chunk = Some(
++                usize::try_from(offset)
++                    .map_err(|_| vortex_err!("offset_within_chunk does not fit in usize"))?,
++            );
++        }
++        Ok(patches)
+     }
+ 
+     /// Construct new patches without validating any of the arguments
+@@ -1225,6 +1252,7 @@
+ mod test {
+     use vortex_buffer::BufferMut;
+     use vortex_buffer::buffer;
++    use vortex_error::VortexResult;
+     use vortex_mask::Mask;
+ 
+     use crate::IntoArray;
+@@ -2298,6 +2326,52 @@
+     }
+ 
+     #[test]
++    fn test_from_metadata_missing_within_chunk() -> VortexResult<()> {
++        let patches = Patches::new(
++            2048,
++            0,
++            buffer![100u64, 1200].into_array(),
++            buffer![10i32, 20].into_array(),
++            Some(buffer![0u64, 1].into_array()),
++        )?;
++        let mut metadata = patches.to_metadata(2048, patches.dtype())?;
++        metadata.offset_within_chunk = None;
++        let decoded = Patches::from_metadata(
++            2048,
++            metadata,
++            patches.indices().clone(),
++            patches.values().clone(),
++            patches.chunk_offsets().clone(),
++        )?;
++        assert_eq!(decoded.offset_within_chunk(), Some(0));
++        assert_eq!(decoded.search_index(1200)?, SearchResult::Found(1));
++        Ok(())
++    }
++
++    #[test]
++    fn test_from_metadata_flat_within_chunk() -> VortexResult<()> {
++        let patches = Patches::new(
++            10,
++            5,
++            buffer![7u64].into_array(),
++            buffer![10i32].into_array(),
++            None,
++        )?;
++        let mut metadata = patches.to_metadata(10, patches.dtype())?;
++        metadata.offset_within_chunk = Some(2);
++        let decoded = Patches::from_metadata(
++            10,
++            metadata,
++            patches.indices().clone(),
++            patches.values().clone(),
++            None,
++        )?;
++        assert_eq!(decoded.offset_within_chunk(), Some(2));
++        assert_eq!(decoded.search_index(2)?, SearchResult::Found(0));
++        Ok(())
++    }
++
++    #[test]
+     fn test_index_larger_than_length() {
+         let chunk_offsets = buffer![0u64].into_array();
+         let indices = buffer![1023u64].into_array();

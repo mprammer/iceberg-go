@@ -27,3 +27,16 @@ empty-puffin-uncompressed.bin
 sample-metric-data-uncompressed.bin
 sample-metric-data-compressed-zstd.bin
 puffin/testdata/*
+# Generated upstream C API and patches to Apache-licensed upstream source.
+vortex.h
+reader-at-and-expressions.patch
+alp-sliced-patches.patch
+
+# Release archive checks match paths rather than directory basenames.
+internal/vortexffi/include/vortex.h
+internal/vortexffi/patches/reader-at-and-expressions.patch
+internal/vortexffi/patches/alp-sliced-patches.patch
+
+# Generated compressed PCO fixture bytes and their independent source values.
+pco_modes.json
+table/internal/testdata/vortex/rust/pco_modes.json

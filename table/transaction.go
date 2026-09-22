@@ -3093,6 +3093,7 @@ func (t *Transaction) makePositionDeleteRecordsForFilter(ctx context.Context, fs
 		projectedSchema: meta.CurrentSchema(),
 		boundRowFilter:  boundFilter,
 		caseSensitive:   caseSensitive,
+		nameMapping:     builtMeta.NameMapping(),
 		rowLimit:        -1, // No limit
 		concurrency:     concurrency,
 	}

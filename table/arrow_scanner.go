@@ -1009,23 +1009,31 @@ func fieldIndexByID(schema *arrow.Schema, fieldID int) int {
 // rowPositionSource holds the surviving row groups for a single file read.
 // processRecords populates spans (via the row-group tester) before any record is
 // read, then every position-keyed pipeline step takes its own cursor over the
-// shared, immutable spans. One source, many cursors: each step advances
+// shared spans. One source, many cursors: each step advances
 // independently but resolves the same original file positions.
 //
-// With no spans recorded (non-Parquet files, or a read with no pruning pass) the
-// cursors fall back to a contiguous counter from zero.
+// Vortex updates the source before each batch with validated physical spans.
+// With no spans recorded, cursors fall back to a contiguous counter from zero.
 type rowPositionSource struct {
-	spans []tblutils.RowGroupSpan
+	spans   []tblutils.RowGroupSpan
+	batchID uint64
+}
+
+// setBatch installs borrowed positions for the batch about to enter the
+// pipeline. Each position-dependent step resets its own cursor independently.
+func (s *rowPositionSource) setBatch(spans []tblutils.RowGroupSpan) {
+	s.spans = spans
+	s.batchID++
 }
 
 func (s *rowPositionSource) cursor() *rowPositionCursor {
 	return &rowPositionCursor{src: s}
 }
 
-// pruned reports whether any row group was skipped, i.e. whether emitted rows
-// are non-contiguous. Read only after spans are populated.
+// pruned reports whether consumers must use the physical position cursor.
+// Vortex batches always use it, even if the current span happens to be contiguous.
 func (s *rowPositionSource) pruned() bool {
-	return len(s.spans) > 0
+	return s.batchID > 0 || len(s.spans) > 0
 }
 
 // rowPositionCursor maps each emitted row back to its original position in the
@@ -1036,6 +1044,7 @@ type rowPositionCursor struct {
 	src      *rowPositionSource
 	spanIdx  int
 	consumed int64
+	batchID  uint64
 }
 
 // next returns the original file position of the next row. It is meant to be
@@ -1045,6 +1054,11 @@ type rowPositionCursor struct {
 // the file's row count (e.g. filterByDeletionVector's keep-mask) must still
 // guard against the returned position exceeding that count.
 func (c *rowPositionCursor) next() int64 {
+	if c.batchID != c.src.batchID {
+		c.batchID = c.src.batchID
+		c.spanIdx = 0
+		c.consumed = 0
+	}
 	spans := c.src.spans
 	if len(spans) == 0 {
 		pos := c.consumed
@@ -1242,6 +1256,38 @@ func (as *arrowScan) processRecords(
 			tester.Survivors = &posSource.spans
 		}
 		testRowGroups = tester
+
+	case task.Value.File.FileFormat() == iceberg.VortexFile:
+		logicalSchema := as.filterSchema
+		if logicalSchema == nil {
+			logicalSchema = as.projectedSchema
+		}
+
+		hasMissingDefault, err := pruningFilterHasMissingInitialDefault(
+			pruningFilter, logicalSchema, fileSchema)
+		if err != nil {
+			return err
+		}
+		if hasMissingDefault {
+			// Missing fields with non-null defaults cannot be pruned as nulls.
+			pruningFilter = iceberg.AlwaysTrue{}
+		}
+
+		// Vortex reports each batch's original physical positions so pruning
+		// can stay enabled for lineage, positional deletes, and DVs.
+		filePruningFilter, err := iceberg.TranslateColumnNames(pruningFilter, fileSchema)
+		if err != nil {
+			return err
+		}
+
+		filePruningFilter, err = iceberg.BindExpr(fileSchema, filePruningFilter, as.caseSensitive)
+		if err != nil {
+			return err
+		}
+
+		if posSource != nil || !filePruningFilter.Equals(iceberg.AlwaysTrue{}) {
+			testRowGroups = tblutils.NewVortexScanFilter(filePruningFilter, fileSchema, posSource != nil)
+		}
 	}
 
 	recRdr, err = rdr.GetRecords(ctx, columns, testRowGroups)
@@ -1249,6 +1295,15 @@ func (as *arrowScan) processRecords(
 		return err
 	}
 	defer recRdr.Release()
+
+	var positions tblutils.RowPositionedRecordReader
+	if posSource != nil && task.Value.File.FileFormat() == iceberg.VortexFile {
+		var ok bool
+		positions, ok = recRdr.(tblutils.RowPositionedRecordReader)
+		if !ok {
+			return fmt.Errorf("%w: Vortex reader did not return physical row positions", iceberg.ErrInvalidArgument)
+		}
+	}
 
 	var (
 		idx  int
@@ -1265,6 +1320,9 @@ func (as *arrowScan) processRecords(
 
 		prev = recRdr.RecordBatch()
 		prev.Retain()
+		if positions != nil {
+			posSource.setBatch(positions.RowPositions())
+		}
 
 		for _, f := range pipeline {
 			prev, err = f(prev)
@@ -1354,6 +1412,14 @@ func (as *arrowScan) recordsFromTask(ctx context.Context, task tblutils.Enumerat
 		return err
 	}
 	defer iceinternal.CheckedClose(rdr, &err)
+
+	if task.Value.File.FileFormat() == iceberg.VortexFile {
+		for _, filter := range []iceberg.BooleanExpression{rowFilter, as.rowGroupFilter} {
+			if err := validateVortexFilterTypes(filter, as.scanSchema, iceSchema); err != nil {
+				return err
+			}
+		}
+	}
 
 	pipeline := make([]recProcessFn, 0, 4)
 
@@ -1482,6 +1548,12 @@ func (as *arrowScan) producePosDeletesFromTask(ctx context.Context, task tblutil
 		return err
 	}
 	defer iceinternal.CheckedClose(rdr, &err)
+
+	if task.Value.File.FileFormat() == iceberg.VortexFile {
+		if err := validateVortexFilterTypes(as.boundRowFilter, as.scanSchema, iceSchema); err != nil {
+			return err
+		}
+	}
 
 	fields := append(iceSchema.Fields(), iceberg.PositionalDeleteSchema.Fields()...)
 	enrichedIcebergSchema := iceberg.NewSchema(iceSchema.ID+1, fields...)

@@ -1779,12 +1779,13 @@ func filesToDataFiles(ctx context.Context, fileIO iceio.IO, meta *MetadataBuilde
 	return dataFiles, nil
 }
 
-// FileToDataFile builds a DataFile for an existing parquet file at
-// filePath, reading its footer to populate record count, file size,
-// column sizes, value/null counts and lower/upper bounds, and to infer
-// partition values for order-preserving transforms. sortOrderID is
-// stamped onto the DataFile so callers converting foreign parquet
-// footers can convey the file's sort layout (spec data-file field
+// FileToDataFile builds a DataFile for an existing Parquet or Vortex file.
+// Parquet registration reads footer statistics and infers partitions for
+// order-preserving transforms. Vortex registration streams the required scalar
+// columns to collect file-wide metrics and verify a single partition tuple.
+// Vortex does not report compressed column sizes or split offsets. sortOrderID is
+// stamped onto the DataFile so callers registering existing files
+// can convey the file's sort layout (spec data-file field
 // sort_order_id); pass 0 to make no claim. Panics from the unexported
 // conversion are recovered into an error.
 func FileToDataFile(ctx context.Context, fileIO iceio.IO, filePath string, currentSchema *iceberg.Schema, currentSpec iceberg.PartitionSpec, sortOrderID int, props iceberg.Properties) (df iceberg.DataFile, err error) {
@@ -1803,40 +1804,79 @@ func FileToDataFile(ctx context.Context, fileIO iceio.IO, filePath string, curre
 }
 
 func fileToDataFile(ctx context.Context, fileIO iceio.IO, filePath string, currentSchema *iceberg.Schema, currentSpec iceberg.PartitionSpec, sortOrderID int, props iceberg.Properties) iceberg.DataFile {
-	format := tblutils.FormatFromFileName(filePath)
+	fileFormat := tblutils.FileFormatNameFromFileName(filePath)
+	format := tblutils.GetFileFormat(fileFormat)
+	if format == nil {
+		panic(fmt.Errorf("%w: no reader is available for %s", iceberg.ErrNotImplemented, filePath))
+	}
+
 	rdr := must(format.Open(ctx, fileIO, filePath))
 	defer rdr.Close()
 
 	arrSchema := must(rdr.Schema())
-	if err := checkArrowSchemaCompatWithProperties(currentSchema, arrSchema, false, props); err != nil {
-		panic(err)
-	}
-
 	pathToIDSchema := currentSchema
-	if fileHasIDs := must(VisitArrowSchema(arrSchema, hasIDs{})); fileHasIDs {
-		pathToIDSchema = must(ArrowSchemaToIcebergWithOptions(arrSchema, ArrowToIcebergOptions{
-			TableSchema:     currentSchema,
-			TableProperties: props,
-		}))
-	}
-	statistics := format.DataFileStatsFromMeta(
-		rdr.Metadata(),
-		must(computeStatsPlan(currentSchema, props)),
-		must(format.PathToIDMapping(pathToIDSchema)),
-		tblutils.VariantFieldIDsFromSchema(currentSchema),
-		arrSchema,
-	)
-
-	partitionValues := make(map[int]any)
-	if !currentSpec.Equals(*iceberg.UnpartitionedSpec) {
-		for _, field := range currentSpec.Fields() {
-			if !field.Transform.PreservesOrder() {
-				panic(fmt.Errorf("cannot infer partition value from parquet metadata for a non-linear partition field: %s with transform %s", field.Name, field.Transform))
+	if fileFormat == iceberg.VortexFile {
+		// FieldIDs suppresses name-index errors. Reject ambiguous schemas here
+		// so a failed lookup cannot turn a physical column into a missing default.
+		nameToID := must(iceberg.IndexByName(currentSchema))
+		// Resolve aliases and reused names exactly as scans do, before checking
+		// compatibility or attaching metrics and partition values to field IDs.
+		mapping := currentSchema.NameMapping()
+		if encoded, ok := props[DefaultNameMappingKey]; ok {
+			if err := json.Unmarshal([]byte(encoded), &mapping); err != nil {
+				panic(fmt.Errorf("invalid Vortex registration name mapping: %w", err))
 			}
+		}
+		ids := make(map[int]struct{})
+		for _, id := range nameToID {
+			ids[id] = struct{}{}
+		}
+		resolved, _, err := rdr.PrunedSchema(ids, mapping)
+		if err != nil {
+			panic(err)
+		}
+		pathToIDSchema = must(ArrowSchemaToIcebergWithOptions(resolved, ArrowToIcebergOptions{
+			TableSchema: currentSchema, TableProperties: props,
+		}))
+		if err := checkSchemaCompat(currentSchema, pathToIDSchema); err != nil {
+			panic(err)
+		}
+	} else {
+		if err := checkArrowSchemaCompatWithProperties(currentSchema, arrSchema, false, props); err != nil {
+			panic(err)
+		}
+		if fileHasIDs := must(VisitArrowSchema(arrSchema, hasIDs{})); fileHasIDs {
+			pathToIDSchema = must(ArrowSchemaToIcebergWithOptions(arrSchema, ArrowToIcebergOptions{
+				TableSchema:     currentSchema,
+				TableProperties: props,
+			}))
+		}
+	}
+	statsPlan := must(computeStatsPlan(currentSchema, props))
+	var statistics *tblutils.DataFileStatistics
+	partitionValues := make(map[int]any)
+	if fileFormat == iceberg.VortexFile {
+		colMapping := tblutils.VortexRegistrationColumnMapping(pathToIDSchema)
+		var err error
+		statistics, partitionValues, err = tblutils.CollectVortexRegistrationStatistics(
+			ctx, rdr, currentSchema, currentSpec, statsPlan, colMapping)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		colMapping := must(format.PathToIDMapping(pathToIDSchema))
+		statistics = format.DataFileStatsFromMeta(rdr.Metadata(), statsPlan, colMapping,
+			tblutils.VariantFieldIDsFromSchema(currentSchema), arrSchema)
+		if !currentSpec.Equals(*iceberg.UnpartitionedSpec) {
+			for _, field := range currentSpec.Fields() {
+				if !field.Transform.PreservesOrder() {
+					panic(fmt.Errorf("cannot infer partition value from parquet metadata for a non-linear partition field: %s with transform %s", field.Name, field.Transform))
+				}
 
-			partitionVal := statistics.PartitionValue(field, currentSchema)
-			if partitionVal != nil {
-				partitionValues[field.FieldID] = partitionVal
+				partitionVal := statistics.PartitionValue(field, currentSchema)
+				if partitionVal != nil {
+					partitionValues[field.FieldID] = partitionVal
+				}
 			}
 		}
 	}
@@ -1845,7 +1885,7 @@ func fileToDataFile(ctx context.Context, fileIO iceio.IO, filePath string, curre
 		Schema:          currentSchema,
 		Spec:            currentSpec,
 		Path:            filePath,
-		Format:          iceberg.ParquetFile,
+		Format:          fileFormat,
 		Content:         iceberg.EntryContentData,
 		FileSize:        rdr.SourceFileSize(),
 		PartitionValues: partitionValues,
